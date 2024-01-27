@@ -12,11 +12,11 @@ import(
 type transState struct {
     nextState int
     write int
-    direction bool // right is true
+    direction bool // true -> move right
 }
 
 type model struct {
-	tape	list.List
+	tape	*list.List
 	head	*list.Element
     state   int
     stateTable [][]transState 
@@ -26,10 +26,10 @@ func initialModel() model {
 	initTape := list.New()
 	initTape.PushBack(1)
 	return model{
-		tape: *initTape,
+		tape: initTape,
 		head: initTape.Front(),
 		state: 2,
-		//stateTable: [][]transState{{(0,false)},{0,true}},
+		stateTable: [][]transState{},
 	}
 }
 
@@ -84,13 +84,14 @@ func (m model) View() string {
 		}
 		viewHead = viewHead.Next();
 	}
+	s += "\n"
 
 		//s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
-	s += strings.Repeat(" ",2*viewWidth)
+	s += strings.Repeat(" ",2*viewWidth+1)
 	s += "^\n"
 	s += fmt.Sprintf("Current state: %v\n", m.state)
 
-	s += "\nPress q to quit.\n"
+	s += "\nPress n to step, q to quit.\n"
 
 	return s
 }
