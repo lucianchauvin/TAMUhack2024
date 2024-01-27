@@ -7,10 +7,23 @@ import(
 	"strings"
 	list "container/list"
 	tea "github.com/charmbracelet/bubbletea"
+	lipgloss "github.com/charmbracelet/lipgloss"
 )
 
-func toRune(i int) rune {
-    return rune('A' - 1 + i)
+var style = lipgloss.NewStyle().
+    Bold(true).
+    Foreground(lipgloss.Color("#FAFAFA")).
+    Background(lipgloss.Color("#7D56F4")).
+    PaddingTop(2).
+    PaddingLeft(4).
+    Width(22)
+
+
+func toRune(i int) string {
+	if i == 0 {
+		return "HALT"
+	}
+    return string(rune('A' + i))
 }
 
 type transState struct {
@@ -24,6 +37,7 @@ type model struct {
 	head	*list.Element
     state   int
     stateTable [][]transState 
+	run		int //number of steps run
 }
 
 func initialModel() model {
@@ -34,6 +48,7 @@ func initialModel() model {
 		head: initTape.Front(),
 		state: 2,
 		stateTable: [][]transState{},
+		run: 0,
 	}
 }
 
@@ -64,7 +79,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "s":
+		case "n", "s":
 			m = m.step()
 		case "ctrl+c", "q":
 			return m, tea.Quit
@@ -98,9 +113,9 @@ func (m model) View() string {
 		//s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
 	s += strings.Repeat(" ",2*viewWidth+1)
 	s += "^\n"
-	s += fmt.Sprintf("Current state: %q\n", toRune(m.state))
+	s += fmt.Sprintf("Current state: %v\n", toRune(m.state))
 
-	s += "\nPress s to step, q to quit.\n"
+	s += "\nPress r to run, Ctrl-c to stop, s to step, q to quit.\n"
 
 	return s
 }
