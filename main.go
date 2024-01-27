@@ -29,7 +29,7 @@ func initialModel() model {
 		tape: *initTape,
 		head: initTape.Front(),
 		state: 2,
-		//stateTable: [][]transState{{(0,false)},{0,true}},
+		stateTable: [][]transState{},
 	}
 }
 
