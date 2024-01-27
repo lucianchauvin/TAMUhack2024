@@ -1,51 +1,48 @@
 package main
 
-
-import(
-	"fmt"	
-	"os"
-	"strings"
+import (
 	list "container/list"
+	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
+	"os"
 )
 
 type transState struct {
-    nextState int
-    write int
-    direction bool // right is true
+	nextState int
+	write     int
+	direction bool // right is true
 }
 
 type model struct {
-	tape	list.List
-	head	*list.Element
-    state   int
-    stateTable [][]transState 
+	tape       list.List
+	head       *list.Element
+	state      int
+	stateTable [][]transState
 }
 
 func initialModel() model {
 	initTape := list.New()
 	initTape.PushBack(1)
 	return model{
-		tape: *initTape,
-		head: initTape.Front(),
+		tape:  *initTape,
+		head:  initTape.Front(),
 		state: 2,
 		//stateTable: [][]transState{{(0,false)},{0,true}},
 	}
 }
 
-func (m model) step(){ 
-    curValue := m.head.Value.(int)
-    curState := m.state
+func (m model) step() {
+	curValue := m.head.Value.(int)
+	curState := m.state
 
-    m.head.Value = m.stateTable[curState][curValue].write
-    m.state = m.stateTable[curState][curValue].nextState
-    if(m.stateTable[curState][curValue].direction){
-        m.head = m.head.Next()
-    }else{
-        m.head = m.head.Prev()
-    }
+	m.head.Value = m.stateTable[curState][curValue].write
+	m.state = m.stateTable[curState][curValue].nextState
+	if m.stateTable[curState][curValue].direction {
+		m.head = m.head.Next()
+	} else {
+		m.head = m.head.Prev()
+	}
 }
-
 
 func (m model) Init() tea.Cmd {
 	return tea.SetWindowTitle("T-soding")
@@ -68,25 +65,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	s := "The current tape state:\n\n"
 
-	viewWidth := 4;
-	viewHead := m.head;
+	viewWidth = 4
+	viewHead = m.head
 
-	for i:=0; i < viewWidth; i++ {
+	for i := 0; i < viewWidth; i++ {
 		if viewHead.Prev() == nil {
-			m.tape.InsertBefore(0,viewHead)
+			m.tape.InsertBefore(0, viewHead)
 		}
-		viewHead = viewHead.Prev();
+		viewHead = viewHead.Prev()
 	}
-	for i:=0; i < 2*viewWidth+1; i++ {
+	for i := 0; i < 2*viewWidth+1; i++ {
 		s += fmt.Sprintf(" %v", viewHead.Value)
 		if viewHead.Next() == nil {
-			m.tape.InsertAfter(0,viewHead)
+			m.tape.InsertAfter(0, viewHead)
 		}
-		viewHead = viewHead.Next();
+		viewHead = viewHead.Next()
 	}
 
-		//s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
-	s += strings.Repeat(" ",2*viewWidth)
+	//s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
+	s += strings.Repeat(" ", 2*viewWidth)
 	s += "^\n"
 	s += fmt.Sprintf("Current state: %v\n", m.state)
 
