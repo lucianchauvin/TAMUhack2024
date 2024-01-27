@@ -11,6 +11,7 @@ import(
 
 type transState struct {
     nextState int
+    write int
     direction bool // right is true
 }
 
@@ -33,10 +34,16 @@ func initialModel() model {
 }
 
 func (m model) step(){ 
-//    curValue := m.head.Value
-//    curValue := m.head.Value
-//    curState := m.state
-//    m.head.Value = 
+    curValue := m.head.Value.(int)
+    curState := m.state
+
+    m.head.Value = m.stateTable[curState][curValue].write
+    m.state = m.stateTable[curState][curValue].nextState
+    if(m.stateTable[curState][curValue].direction){
+        m.head = m.head.Next()
+    }else{
+        m.head = m.head.Prev()
+    }
 }
 
 
