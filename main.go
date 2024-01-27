@@ -1,9 +1,10 @@
 package main
 
 
-import (
+import(
 	"fmt"	
 	"os"
+	"strings"
 	list "container/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -21,10 +22,13 @@ type model struct {
 }
 
 func initialModel() model {
-	initTape = list.New()
+	initTape := list.New()
+	initTape.PushBack(1)
 	return model{
-		tape: initTape,
+		tape: *initTape,
 		head: initTape.Front(),
+		state: 2,
+		//stateTable: [][]transState{{(0,false)},{0,true}},
 	}
 }
 
@@ -37,7 +41,7 @@ func (m model) step(){
 
 
 func (m model) Init() tea.Cmd {
-	return tea.SetWindowTitle("Grocery List")
+	return tea.SetWindowTitle("T-soding")
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -57,25 +61,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	s := "The current tape state:\n\n"
 
-	viewWidth = 4;
-	viewHead = m.head;
+	viewWidth := 4;
+	viewHead := m.head;
 
 	for i:=0; i < viewWidth; i++ {
 		if viewHead.Prev() == nil {
-			m.list.insertBefore(0,viewHead)
+			m.tape.InsertBefore(0,viewHead)
 		}
 		viewHead = viewHead.Prev();
 	}
 	for i:=0; i < 2*viewWidth+1; i++ {
-		s += fmt.Sprintf(" %v", viewHead.value)
-		if viewHead.next == nil {
-			m.list.insertAfter(0,viewHead)
+		s += fmt.Sprintf(" %v", viewHead.Value)
+		if viewHead.Next() == nil {
+			m.tape.InsertAfter(0,viewHead)
 		}
-		viewHead = viewHead.next();
+		viewHead = viewHead.Next();
 	}
 
 		//s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
-	s += " "*2*viewWidth;
+	s += strings.Repeat(" ",2*viewWidth)
 	s += "^\n"
 	s += fmt.Sprintf("Current state: %v\n", m.state)
 
