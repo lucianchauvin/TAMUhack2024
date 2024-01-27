@@ -1,22 +1,38 @@
-package ui
+package main
+
 
 import (
-	"fmt"
+	"fmt"	
 	"os"
-	"container/list"
+	list "container/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+type transState struct {
+    nextState int
+    direction bool // right is true
+}
+
 type model struct {
-	tape	list
-	head	*element
+	tape	list.List
+	head	*list.Element
+    state   int
+    stateTable [][]transState 
 }
 
 func initialModel() model {
+	initTape = list.New()
 	return model{
-		tape: list.New(),
-		head: list.front(),
+		tape: initTape,
+		head: initTape.Front(),
 	}
+}
+
+func (m model) step(){ 
+//    curValue := m.head.Value
+//    curValue := m.head.Value
+//    curState := m.state
+//    m.head.Value = 
 }
 
 
@@ -30,21 +46,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.choices)-1 {
-				m.cursor++
-			}
-		case "enter", " ":
-			_, ok := m.selected[m.cursor]
-			if ok {
-				delete(m.selected, m.cursor)
-			} else {
-				m.selected[m.cursor] = struct{}{}
-			}
+		case "s":
+			m.step()
 		}
 	}
 
@@ -74,6 +77,7 @@ func (m model) View() string {
 		//s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
 	s += " "*2*viewWidth;
 	s += "^\n"
+	s += fmt.Sprintf("Current state: %v\n", m.state)
 
 	s += "\nPress q to quit.\n"
 
