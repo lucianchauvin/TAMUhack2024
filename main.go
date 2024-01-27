@@ -9,6 +9,10 @@ import(
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+func toRune(i int) rune {
+    return rune('A' - 1 + i)
+}
+
 type transState struct {
     nextState int
     write int
@@ -33,17 +37,22 @@ func initialModel() model {
 	}
 }
 
-func (m model) step(){ 
-    curValue := m.head.Value.(int)
-    curState := m.state
+func (m model) step() model { 
+	if m.head.Next() == nil {
+		m.tape.InsertAfter(0,m.head)
+	}
+	m.head = m.head.Next()
+    //curValue := m.head.Value.(int)
+    //curState := m.state
 
-    m.head.Value = m.stateTable[curState][curValue].write
-    m.state = m.stateTable[curState][curValue].nextState
-    if(m.stateTable[curState][curValue].direction){
-        m.head = m.head.Next()
-    }else{
-        m.head = m.head.Prev()
-    }
+    //m.head.Value = m.stateTable[curState][curValue].write
+    //m.state = m.stateTable[curState][curValue].nextState
+    //if(m.stateTable[curState][curValue].direction){
+    //    m.head = m.head.Next()
+    //}else{
+    //    m.head = m.head.Prev()
+    //}
+	return m
 }
 
 
@@ -55,10 +64,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
+		case "s":
+			m = m.step()
 		case "ctrl+c", "q":
 			return m, tea.Quit
-		case "s":
-			m.step()
 		}
 	}
 
@@ -89,9 +98,9 @@ func (m model) View() string {
 		//s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
 	s += strings.Repeat(" ",2*viewWidth+1)
 	s += "^\n"
-	s += fmt.Sprintf("Current state: %v\n", m.state)
+	s += fmt.Sprintf("Current state: %q\n", toRune(m.state))
 
-	s += "\nPress n to step, q to quit.\n"
+	s += "\nPress s to step, q to quit.\n"
 
 	return s
 }
