@@ -10,27 +10,6 @@ import(
 	lipgloss "github.com/charmbracelet/lipgloss"
 )
 
-var style = lipgloss.NewStyle().
-    Bold(true).
-    Foreground(lipgloss.Color("#FAFAFA")).
-    Background(lipgloss.Color("#7D56F4")).
-    PaddingTop(2).
-    PaddingLeft(4).
-    Width(22)
-
-
-func toRune(i int) string {
-	if i == 0 {
-		return "HALT"
-	}
-    return string(rune('A' + i))
-}
-
-type transState struct {
-    nextState int
-    write int
-    direction bool // true -> move right
-}
 
 type model struct {
 	tape	*list.List
@@ -46,27 +25,22 @@ func initialModel() model {
 	return model{
 		tape: initTape,
 		head: initTape.Front(),
-		state: 2,
-		stateTable: [][]transState{},
-		run: 0,
+		state: 1,
+		stateTable: [][]transState{{{1,1,true}, {1,0,false}},{{1,1,false},{0,0,true}}},
 	}
 }
 
 func (m model) step() model { 
-	if m.head.Next() == nil {
-		m.tape.InsertAfter(0,m.head)
-	}
-	m.head = m.head.Next()
-    //curValue := m.head.Value.(int)
-    //curState := m.state
+    curValue := m.head.Value.(int)
+    curState := m.state
 
-    //m.head.Value = m.stateTable[curState][curValue].write
-    //m.state = m.stateTable[curState][curValue].nextState
-    //if(m.stateTable[curState][curValue].direction){
-    //    m.head = m.head.Next()
-    //}else{
-    //    m.head = m.head.Prev()
-    //}
+    m.head.Value = m.stateTable[curState][curValue].write
+    m.state = m.stateTable[curState][curValue].nextState
+    if(m.stateTable[curState][curValue].direction){
+        m.head = m.head.Next()
+    }else{
+        m.head = m.head.Prev()
+    }
 	return m
 }
 
@@ -118,6 +92,28 @@ func (m model) View() string {
 	s += "\nPress r to run, Ctrl-c to stop, s to step, q to quit.\n"
 
 	return s
+}
+
+var style = lipgloss.NewStyle().
+    Bold(true).
+    Foreground(lipgloss.Color("#FAFAFA")).
+    Background(lipgloss.Color("#7D56F4")).
+    PaddingTop(2).
+    PaddingLeft(4).
+    Width(22)
+
+
+func toRune(i int) string {
+	if i == 0 {
+		return "HALT"
+	}
+    return string(rune('A' + i))
+}
+
+type transState struct {
+    nextState int
+    write int
+    direction bool // true -> move right
 }
 
 func main() {
