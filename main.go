@@ -4,7 +4,7 @@ import(
 	"fmt"	
 	"os"
 	list "container/list"
-    "tsoding/table"
+	"tsoding/table"
 	tea "github.com/charmbracelet/bubbletea"
 	lipgloss "github.com/charmbracelet/lipgloss"
 	//"github.com/charmbracelet/bubbles/cursor"
@@ -21,16 +21,16 @@ var baseStyle = lipgloss.NewStyle().
 type model struct {
 	tape		*list.List
 	head		*list.Element
-    stateTable	[][]transState 
-    table		table.Model
-    state		int
+	stateTable	[][]transState 
+	table		table.Model
+	state		int
 	viewWidth	int //number of steps run
 	started		bool // you can't edit the table if you've started!
 }
 
 
 func initialModel() model {
-    columns := []table.Column{
+	columns := []table.Column{
 		{Title: "State/Symbol", Width: 12},
 		{Title: "1", Width: 8},
 		{Title: "2", Width: 8},
@@ -59,7 +59,7 @@ func initialModel() model {
 		BorderForeground(lipgloss.Color("240")).
 		BorderBottom(true).
 		Bold(false)
-    s.Selected = s.Selected.
+	s.Selected = s.Selected.
 		Foreground(lipgloss.Color("229")).
 		Background(lipgloss.Color("57")).
 		Bold(false)
@@ -72,11 +72,11 @@ func initialModel() model {
 	return model{
 		tape: initTape,
 		head: initTape.Front(),
-		stateTable: [][]transState{{{1,1,true}, {1,0,false}},{{1,1,false},{0,0,true}}},
+		stateTable: [][]transState{{{1,1,true}, {1,0,false}}, {{1,1,false}, {0,0,true}}},
 		state:		1,
 		viewWidth:	10,
 		started:	false,
-        table: t,
+		table: t,
 	}
 }
 func (m model) resetModel() model {
@@ -91,16 +91,16 @@ func (m model) step() model {
 		return m
 	}
 	m.started = true
-    curValue := m.head.Value.(int)
-    curState := m.state
+	curValue := m.head.Value.(int)
+	curState := m.state
 
-    m.head.Value = m.stateTable[curState][curValue].write
-    m.state = m.stateTable[curState][curValue].nextState
-    if(m.stateTable[curState][curValue].direction){
-        m.head = m.head.Next()
-    }else{
-        m.head = m.head.Prev()
-    }
+	m.head.Value = m.stateTable[curState][curValue].write
+	m.state = m.stateTable[curState][curValue].nextState
+	if(m.stateTable[curState][curValue].direction){
+		m.head = m.head.Next()
+	}else{
+		m.head = m.head.Prev()
+	}
 	return m
 }
 
@@ -133,7 +133,8 @@ func (m model) Edit() model {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-    var cmd tea.Cmd
+	renderTable(m.stateTable, &m.table)	
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -153,14 +154,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "ctrl+c", "q":
 			return m, tea.Quit
-        case "enter":
+		case "enter":
 			return m, tea.Batch(
 				tea.Printf("Let's go to %s!", m.table.SelectedRow()[1]),
 			)
 
 		}
 	}
-    m.table, cmd = m.table.Update(msg)
+	m.table, cmd = m.table.Update(msg)
 	return m, cmd
 }
 
@@ -185,44 +186,52 @@ func (m model) View() string {
 	s = s[:len(s) - 1]
 	s += "...\n"
 
-		//s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
+	//s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
 	s += "^\n"
 	s += fmt.Sprintf("Current state: %v\n", toRune(m.state))
-    s += baseStyle.Render(m.table.View()) + "\n"
+	s += baseStyle.Render(m.table.View()) + "\n"
 	s += "\nPress s to step, r to reset, +/- to see more/less of the tape, q to quit.\n"
 
 	return style.Render(s)
 }
 
 var style = lipgloss.NewStyle().
-    //Foreground(lipgloss.Color("#FAFAFA")).
-    //Background(lipgloss.Color("#7D56F4")).
-    PaddingTop(2).
-    PaddingLeft(4).
-    Width(100).
+	//Foreground(lipgloss.Color("#FAFAFA")).
+	//Background(lipgloss.Color("#7D56F4")).
+	PaddingTop(2).
+	PaddingLeft(4).
+	Width(100).
 	Align(lipgloss.Center)
 
 
 func toRune(i int) string {
 	if i == ACCEPT {
-		return "ACCEPT"
+		return "✓"
 	} else if i == REJECT {
-		return "REJECT"
+		return "⨯"
 	}
-    return string(rune('A' + i))
+	return string(rune('A' + i))
 }
 
 type transState struct {
-    nextState int
-    write int
-    direction bool // true -> move right
+	nextState int
+	write int
+	direction bool // true -> move right
 }
 
-func TransStateToString(t transState) string {
+func (t transState) render() string {
 	s := fmt.Sprintf("%v, %v, %v", toRune(t.nextState), t.write,
-	func (dir bool) string { if dir { return "R" } 
-		return "L" }(t.direction))
-	return s
+		func (dir bool) string { if dir { return "R" } 
+			return "L" }(t.direction))
+	return s	
+}
+
+func renderTable(ts [][]transState, table *table.Model) {
+	for y := 0; y < len(ts); y++ {
+		for x := 0; x < len(ts[y]); x++ {
+			table.Rows()[y][x+1] = ts[y][x].render()
+		}
+	}
 }
 
 func main() {
