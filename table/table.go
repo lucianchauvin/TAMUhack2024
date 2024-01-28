@@ -451,6 +451,13 @@ func min(a, b int) int {
 	return b
 }
 
+func (m Model) GetCursorY() int {
+	return m.cursory
+}
+func (m Model) GetCursorX() int {
+	return m.cursorx
+}
+
 func clamp(v, low, high int) int {
 	return min(max(v, low), high)
 }

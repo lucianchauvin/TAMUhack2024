@@ -124,9 +124,10 @@ func (m model) Edit() model {
 		}
 		in[i] = t
 	}
-	//m.stateTable[m.table.cursory][m.table.cursorx].nextState = in[0]
-	//m.stateTable[m.table.cursory][m.table.cursorx].write = in[1]
-	//m.stateTable[m.table.cursory][m.table.cursorx].direction = (in[2] == 'R')
+	//m.stateTable[m.table.GetCursorY()][m.table.GetCursorX()].
+	//	nextState = in[0].value[0]
+	//m.stateTable[m.table.GetCursorY()][m.table.GetCursorX()].write = in[1]
+	//m.stateTable[m.table.GetCursorY()][m.table.GetCursorX()].direction = (in[2] == 'R')
 	return m
 }
 
@@ -214,6 +215,13 @@ type transState struct {
     nextState int
     write int
     direction bool // true -> move right
+}
+
+func TransStateToString(t transState) string {
+	s := fmt.Sprintf("%v, %v, %v", toRune(t.nextState), t.write,
+	func (dir bool) string { if dir { return "R" } 
+		return "L" }(t.direction))
+	return s
 }
 
 func main() {
