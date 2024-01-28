@@ -12,8 +12,8 @@ import(
 	//"github.com/muesli/termenv"
 )
 
-const ACCEPT = 0
-const REJECT = 25
+const ACCEPT = 24 //Y
+const REJECT = 13 //N
 
 var tableStyle = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder()).
@@ -25,7 +25,7 @@ type model struct {
 	head		*list.Element
 	stateTable	[][]transState 
 	table		table.Model
-	state		int
+	state		int // A = 0
 	viewWidth	int //number of steps run
 	started		bool // you can't edit the table if you've started!
 
@@ -47,26 +47,25 @@ func (m model) Init() tea.Cmd {
 func initialModel() model {
 	columns := []table.Column{
 		{Title: "State/Symbol", Width: 12},
+		{Title: "0", Width: 8},
 		{Title: "1", Width: 8},
 		{Title: "2", Width: 8},
-		{Title: "3", Width: 8},
-		{Title: "4", Width: 8},
 	}
 
 	rows := []table.Row{
-		{"A", "", "", "", ""},
-		{"B", "", "", "", ""},
-		{"C", "", "", "", ""},
-		{"D", "", "", "", ""},
-		{"E", "", "", "", ""},
-		{"F", "", "", "", ""},
+		{"A", "", "", ""},
+		{"B", "", "", ""},
+		{"C", "", "", ""},
+		{"D", "", "", ""},
+		{"E", "", "", ""},
+		{"F", "", "", ""},
 	}
 
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
-		table.WithHeight(7),
+		table.WithHeight(6),
 	)
 
 	s := table.DefaultStyles()
@@ -85,6 +84,10 @@ func initialModel() model {
 
 	initTape := list.New()
 	initTape.PushBack(1)
+	initTape.PushBack(2)
+	initTape.PushBack(2)
+	initTape.PushBack(2)
+	initTape.PushBack(1)
 
 	inputs := make([]textinput.Model, 3)
 	
@@ -94,13 +97,13 @@ func initialModel() model {
 		ti.CharLimit = 1
 		switch i {
 		case 0:
-			ti.Prompt = "New State  (A-Z): "
+			ti.Prompt = "New State   (A-Z): "
 			ti.Placeholder = "A"
 		case 1:
-			ti.Prompt = "New Symbol (0-9): "
+			ti.Prompt = "New Symbol  (0-9): "
 			ti.Placeholder = "0"
 		case 2:
-			ti.Prompt = "Direction  (R/L): "
+			ti.Prompt = "Direction   (R/L): "
 			ti.Placeholder = "L"
 		}
 		ti.PromptStyle.AlignHorizontal(lipgloss.Left)
@@ -108,12 +111,22 @@ func initialModel() model {
 		ti.PlaceholderStyle.AlignHorizontal(lipgloss.Left)
 		inputs[i] = ti
 	}	
+	A := ACCEPT
+	R := REJECT
 	
 	return model{
 		tape: initTape,
 		head: initTape.Front(),
-		stateTable: [][]transState{{{1,1,true}, {1,0,false}}, {{1,1,false}, {0,0,true}}},
-		state:		1,
+		//rows are states, columns are symbols
+		stateTable: [][]transState{
+			{{A,0,true }, {4,0,false},{R,2,false}},
+			{{A,0,false}, {R,1,false},{5,0,false}},
+			{{0,0,false}, {2,1,true },{2,2,true }},
+			{{1,0,false}, {3,1,true },{3,2,true }},
+			{{5,0,true }, {4,1,false},{4,2,false}},
+			{{A,0,true }, {2,0,true },{3,0,true }},
+		},
+		state:		4,
 		viewWidth:	10,
 		started:	false,
 		table: t,
@@ -132,7 +145,7 @@ func (m model) resetModel() model {
 }
 
 func (m model) step() model { 
-	if m.state <= 0 {
+	if m.state == ACCEPT || m.state == REJECT {
 		return m
 	}
 	m.started = true
@@ -146,6 +159,7 @@ func (m model) step() model {
 	}else{
 		m.head = m.head.Prev()
 	}
+	m.table.SetCursor(curState, curValue+1)
 	return m
 }
 
@@ -306,23 +320,24 @@ func (m model) View() string {
 	s += "\n" + tableStyle.Render(m.table.View()) + "\n"
 	if m.editFailed { s += "\nthat's not a valid table entry!\n"
 	} else if m.editMode {
-		s += "\n↑/↓: change field • e: stop editing • ↵: save to table • q: quit.\nUse 'A' as the accept state, and 'Z' as the fail state."
+		s += "\n↑/↓: change field • e: stop editing • ↵: save to table • q: quit.\nUse 'Y' as the yes/accept state and 'N' as the no/fail state."
 	} else if !m.started {
 		s += "\ns: step • e: edit  • +/-: view more/less tape • q: quit.\n"
 	} else {
 	s += "\ns: step • r: reset • +/-: view more/less tape • q: quit.\n"
 	}
 
-	return style.Render(s)
+	return style.
+		PaddingTop(5).
+		PaddingLeft(20).
+		Render(s)
 }
 
 var style = lipgloss.NewStyle().
 	//Foreground(lipgloss.Color("#FAFAFA")).
 	//Background(lipgloss.Color("#7D56F4")).
-	PaddingTop(2).
-	PaddingLeft(4).
-	Width(100).
 	Align(lipgloss.Center)
+var InputStyle = lipgloss.NewStyle().Align(lipgloss.Left)
 
 
 func toRune(i int) string {
@@ -332,6 +347,12 @@ func toRune(i int) string {
 		return "⨯"
 	}
 	return string(rune('A' + i))
+}
+
+type TestCase struct {
+	tape *list.List
+	head *list.Element
+	pass bool
 }
 
 type transState struct {
