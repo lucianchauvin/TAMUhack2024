@@ -9,14 +9,16 @@ import(
 	lipgloss "github.com/charmbracelet/lipgloss"
 	//"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textinput"
+	//"github.com/muesli/termenv"
 )
 
 const ACCEPT = 0
-const REJECT = -1
+const REJECT = 25
 
-var baseStyle = lipgloss.NewStyle().
+var tableStyle = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder()).
-	BorderForeground(lipgloss.Color("240"))
+	BorderForeground(lipgloss.Color("240")).
+	AlignVertical(lipgloss.Center)
 
 type model struct {
 	tape		*list.List
@@ -29,9 +31,18 @@ type model struct {
 
 	input []textinput.Model
 	editMode bool
+	editFailed bool
 	focusIndex int
 }
 
+//run messages on startup
+func (m model) Init() tea.Cmd {
+
+	return tea.Batch(
+		tea.SetWindowTitle("T-soding"), 
+		tea.EnterAltScreen,
+	 )
+}
 
 func initialModel() model {
 	columns := []table.Column{
@@ -39,15 +50,16 @@ func initialModel() model {
 		{Title: "1", Width: 8},
 		{Title: "2", Width: 8},
 		{Title: "3", Width: 8},
+		{Title: "4", Width: 8},
 	}
 
 	rows := []table.Row{
-		{"A", "", "", ""},
-		{"B", "", "", ""},
-		{"C", "", "", ""},
-		{"D", "", "", ""},
-		{"E", "", "", ""},
-		{"F", "", "", ""},
+		{"A", "", "", "", ""},
+		{"B", "", "", "", ""},
+		{"C", "", "", "", ""},
+		{"D", "", "", "", ""},
+		{"E", "", "", "", ""},
+		{"F", "", "", "", ""},
 	}
 
 	t := table.New(
@@ -82,12 +94,18 @@ func initialModel() model {
 		ti.CharLimit = 1
 		switch i {
 		case 0:
-			ti.Placeholder = "New State (A-Z)"
+			ti.Prompt = "New State  (A-Z): "
+			ti.Placeholder = "A"
 		case 1:
-			ti.Placeholder = "New Symbol (0-9)"
+			ti.Prompt = "New Symbol (0-9): "
+			ti.Placeholder = "0"
 		case 2:
-			ti.Placeholder = "Move (L/R)"
+			ti.Prompt = "Direction  (R/L): "
+			ti.Placeholder = "L"
 		}
+		ti.PromptStyle.AlignHorizontal(lipgloss.Left)
+		ti.TextStyle.AlignHorizontal(lipgloss.Left)
+		ti.PlaceholderStyle.AlignHorizontal(lipgloss.Left)
 		inputs[i] = ti
 	}	
 	
@@ -108,6 +126,8 @@ func (m model) resetModel() model {
 	r := initialModel()
 	r.stateTable = m.stateTable
 	r.viewWidth = m.viewWidth
+	renderTable(r.stateTable, &r.table)
+	r.table.UpdateViewport()
 	return r
 }
 
@@ -129,54 +149,29 @@ func (m model) step() model {
 	return m
 }
 
-func (m model) Init() tea.Cmd {
-	return tea.SetWindowTitle("T-soding")
-}
-
-func (m model) Edit() model {
-	// var t textinput.Model
-	// in := make([]textinput.Model, 5)
-	// for i := range in {
-	// 	t = textinput.New()
-	// 	t.CharLimit = 1
-	// 	switch i {
-	// 	case 0:
-	// 		t.Placeholder = "New State (A-Z)"
-	// 	case 1:
-	// 		t.Placeholder = "New Symbol (0-9)"
-	// 	case 2:
-	// 		t.Placeholder = "Move (L/R)"
-	// 	}
-	// 	in[i] = t
-	// }
-	
-	//textinput example: https://github.com/charmbracelet/bubbletea/blob/master/examples/textinputs/main.go
-	//m.stateTable[m.table.GetCursorY()][m.table.GetCursorX()].
-	//	nextState = in[0].value[0]
-	//m.stateTable[m.table.GetCursorY()][m.table.GetCursorX()].write = in[1]
-	//m.stateTable[m.table.GetCursorY()][m.table.GetCursorX()].direction = (in[2] == 'R')
-	//return in
-
-	return m
-}
-
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd	
-	renderTable(m.stateTable, &m.table)
-	m.table, cmd = m.table.Update(msg)
-	m.table.UpdateViewport()
 	
+	renderTable(m.stateTable, &m.table)
+	m.table.UpdateViewport()
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if !m.editMode {
+			// we only want the table to take inputs when not in edit mode
+			m.table, cmd = m.table.Update(msg)
 			switch msg.String() {
 			case "n", "s":
 				m = m.step()
 			case "r":
 				m = m.resetModel()
 			case "e":
-				m.editMode = !m.editMode
-				m = m.Edit()
+				if(!m.started) { //don't edit if we've already started
+					m.editMode = true
+					m = m.ResetInputs()
+					m.input[m.focusIndex].Blur()				
+					m.focusIndex = 0
+					m.input[m.focusIndex].Focus()				
+				}
 			case "+":
 				if m.viewWidth < 20 {
 					m.viewWidth++
@@ -187,21 +182,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "ctrl+c", "q":
 				return m, tea.Quit
-			case "enter":
-				return m, tea.Batch(
-					tea.Printf("Let's go to %s!", m.table.SelectedRow()[1]),
-				)
+		//	case "enter":
+		//		return m, tea.Batch(
+		//			tea.Printf("Let's go to %s!", m.table.SelectedRow()[1]),
+		//		)
 
 			}
 		} else {
 			switch msg.String() {
 			case "e":
-				m.editMode = !m.editMode
-			case "tab":
+				m = m.ResetInputs()
+				m.editMode = false
+			case "down", "tab":
 				m.input[m.focusIndex].Blur()
 				m.focusIndex++
 				if m.focusIndex > 2 {
 					m.focusIndex = 0
+				}
+				m.input[m.focusIndex].Focus()				
+
+			case "up":
+				m.input[m.focusIndex].Blur()
+				m.focusIndex--
+				if m.focusIndex < 0 {
+					m.focusIndex = 2
 				}
 				m.input[m.focusIndex].Focus()				
 				
@@ -212,10 +216,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "ctrl+c", "q":
 				return m, tea.Quit
 			case "enter":
-				a := m.getCurrentTransState()
-				if a != -1 {
-					m.stateTable[m.table.GetCursorY()][m.table.GetCursorX() -1] = transState {a, a, false}
-				} 
+				InTrans, ok := m.getInputTrans()
+				if ok {
+					m.editFailed = false
+					m.stateTable[m.table.GetCursorY()][m.table.GetCursorX() -1] = InTrans
+					m.editMode = false
+					m = m.ResetInputs()
+				} else {
+					m.editFailed = true
+				}
 			}
 			cmd = m.updateInputs(msg)
 		}
@@ -224,17 +233,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m model) getCurrentTransState() int {
-	var ns int
-	nsc := int(m.input[0].Value()[0])
-	if (nsc > 97 && nsc < 122) {
-		ns = nsc - 97 
-	} else if (nsc > 65 && nsc < 90) {
-		ns = nsc - 65 
-        } else {
-		ns = int(nsc-int('A')+1)		
+func (m model) ResetInputs() model {
+		for i := range m.input {
+			m.input[i].Reset()
+		}
+		return m
+}
+func (m model) getInputTrans() (transState, bool) {
+	for i := range m.input {
+		if len(m.input[i].Value()) == 0 {
+			return transState{0,0,false}, false
+		}
 	}
-	return ns
+	t := transState{int(m.input[0].Value()[0] - 'A'), 
+			int(m.input[1].Value()[0] - '0'),
+			m.input[2].Value() == "R"} 
+	isdir := m.input[2].Value() == "R" || m.input[2].Value() == "L" 
+
+	return t, t.nextState >= 0 && t.nextState <= 26 &&
+		t.write >= 0 && t.write < 10 &&
+		isdir
 }
 
 func (m *model) updateInputs(msg tea.Msg) tea.Cmd {
@@ -271,6 +289,9 @@ func (m model) View() string {
 		}
 		s = s[:len(s) - 1]
 		s += "...\n"
+		//s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
+		s += "^\n"
+		s += fmt.Sprintf("Current state: %v\n", toRune(m.state))
 	} else {
 
 		for i := range m.input {
@@ -279,13 +300,18 @@ func (m model) View() string {
 				s += "\n"
 			}
 		}
+		s += "\n"
 	}
 
-	//s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
-	s += "^\n"
-	s += fmt.Sprintf("Current state: %v\n", toRune(m.state))
-	s += baseStyle.Render(m.table.View()) + "\n"
-	s += "\nPress s to step, r to reset, +/- to see more/less of the tape, q to quit.\n"
+	s += "\n" + tableStyle.Render(m.table.View()) + "\n"
+	if m.editFailed { s += "\nthat's not a valid table entry!\n"
+	} else if m.editMode {
+		s += "\n↑/↓: change field • e: stop editing • ↵: save to table • q: quit.\nUse 'A' as the accept state, and 'Z' as the fail state."
+	} else if !m.started {
+		s += "\ns: step • e: edit  • +/-: view more/less tape • q: quit.\n"
+	} else {
+	s += "\ns: step • r: reset • +/-: view more/less tape • q: quit.\n"
+	}
 
 	return style.Render(s)
 }
