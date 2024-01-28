@@ -55,18 +55,18 @@ func DefaultKeyMap() KeyMap {
 	const spacebar = " "
 	return KeyMap{
 		LineUp: key.NewBinding(
-			key.WithKeys("up", "k"),
+			key.WithKeys("up", "k", "ctrl+p"),
 			key.WithHelp("↑/k", "up"),
 		),
 		ColRight: key.NewBinding(
-			key.WithKeys("right", "l"),
+			key.WithKeys("right", "l", "ctrl+f"),
 		),
 		ColLeft: key.NewBinding(
-			key.WithKeys("left", "h"),
+			key.WithKeys("left", "h", "ctrl+b"),
 
 		),
 		LineDown: key.NewBinding(
-			key.WithKeys("down", "j"),
+			key.WithKeys("down", "j", "ctrl+n"),
 			key.WithHelp("↓/j", "down"),
 		),
 		PageUp: key.NewBinding(
@@ -423,7 +423,7 @@ func (m *Model) renderRow(rowID int) string {
 	var s = make([]string, 0, len(m.cols))
 	for i, value := range m.rows[rowID] {
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
-        
+
 
         m.styles.Cell.BorderStyle(lipgloss.NormalBorder()).BorderRight(i == 0)
 		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
