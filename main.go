@@ -307,7 +307,7 @@ func (m *model) updateInputs(msg tea.Msg) tea.Cmd {
 func (m model) View() string {
 	var s string
     if m.startMode{
-        s = "\n\nWelecome to T-soding, a terminal game all about\nTuring machines created by McKinley and Lucian\nClick b to begin!"
+        s = "\n\nWelcome to T-soding, a terminal game all about\nTuring machines created by McKinley and Lucian\nClick b to begin!\n\nTutorial: The goal of this game is for you to create a Turing machine\nthat solves the current problem. A Turing machine consists of states, symbols, and a tape.\nYou will edit the states and symbols to try to get to the accept state\nwith the correct output left on the tape!"
     } else if !m.editMode {
 		s = "The current tape state:\n\n..."
 
