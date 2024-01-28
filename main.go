@@ -14,7 +14,10 @@ import(
 
 const ACCEPT = 24 //Y
 const REJECT = 13 //N
-
+var TestCases = []TestCase{
+	{tape:[]int{1,1,2,1,1},pass:true},
+	{tape:[]int{1,1},		pass:true},
+	{tape:[]int{1,1,2,2},	pass:false},}
 var tableStyle = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("240")).
@@ -30,9 +33,10 @@ type model struct {
 	started		bool // you can't edit the table if you've started!
 
 	input []textinput.Model
-	editMode bool
-	editFailed bool
-	focusIndex int
+	editMode	bool
+	editFailed	bool
+	focusIndex	int
+	CurrCase	int
 }
 
 //run messages on startup
@@ -82,13 +86,6 @@ func initialModel() model {
 		BorderForeground(lipgloss.Color("240"))
 	t.SetStyles(s)
 
-	initTape := list.New()
-	initTape.PushBack(1)
-	initTape.PushBack(2)
-	initTape.PushBack(2)
-	initTape.PushBack(2)
-	initTape.PushBack(1)
-
 	inputs := make([]textinput.Model, 3)
 	
 	var ti textinput.Model
@@ -114,9 +111,9 @@ func initialModel() model {
 	A := ACCEPT
 	R := REJECT
 	
-	return model{
-		tape: initTape,
-		head: initTape.Front(),
+	m := model{
+		tape: list.New(),
+		head: nil,
 		//rows are states, columns are symbols
 		stateTable: [][]transState{
 			{{A,0,true }, {4,0,false},{R,2,false}},
@@ -134,6 +131,7 @@ func initialModel() model {
 		editMode: false,
 		focusIndex: 0,
 	}
+	return m.LoadCase()
 }
 func (m model) resetModel() model {
 	r := initialModel()
@@ -142,6 +140,19 @@ func (m model) resetModel() model {
 	renderTable(r.stateTable, &r.table)
 	r.table.UpdateViewport()
 	return r
+}
+
+func (m model) LoadCase() model {
+	//assume out of bound issues are handled elsewhere
+	m.tape.Init()
+	m.tape.PushBack(0)
+	for _, symbol := range TestCases[m.CurrCase].tape {
+		m.tape.PushBack(symbol)
+	}
+	m.head = m.tape.Front()
+	m.state = 4
+	m.CurrCase++
+	return m
 }
 
 func (m model) step() model { 
@@ -174,8 +185,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// we only want the table to take inputs when not in edit mode
 			m.table, cmd = m.table.Update(msg)
 			switch msg.String() {
-			case "n", "s":
+			case "s":
 				m = m.step()
+			case "n":
+				if (m.state == ACCEPT) == TestCases[m.CurrCase - 1].pass && m.CurrCase < len(TestCases) {
+					m = m.LoadCase()
+				}
 			case "r":
 				m = m.resetModel()
 			case "e":
@@ -320,7 +335,13 @@ func (m model) View() string {
 	s += "\n" + tableStyle.Render(m.table.View()) + "\n"
 	if m.editFailed { s += "\nthat's not a valid table entry!\n"
 	} else if m.editMode {
-		s += "\n↑/↓: change field • e: stop editing • ↵: save to table • q: quit.\nUse 'Y' as the yes/accept state and 'N' as the no/fail state."
+		s += "\n↑/↓: change field • e: stop editing • ↵: save to table • q: quit.\nuse 'Y' as the yes/accept state and 'N' as the no/fail state."
+	} else if m.Correct() && len(TestCases) == m.CurrCase {
+		s += "\nr: reset • +/-: view more/less tape • q: quit\ncongratulations! you completed every test case successfully!\n"
+	} else if m.Correct() {
+		s += "\nn: next case • +/-: view more/less tape • q: quit.\n"
+	} else if m.Halted() {
+		s += "\nr: reset • +/-: view more/less tape • q: quit.\nthat's not the right answer for this case :("
 	} else if !m.started {
 		s += "\ns: step • e: edit  • +/-: view more/less tape • q: quit.\n"
 	} else {
@@ -331,6 +352,15 @@ func (m model) View() string {
 		PaddingTop(5).
 		PaddingLeft(20).
 		Render(s)
+}
+
+func (m model) Halted() bool {
+	return m.state == ACCEPT || m.state == REJECT
+}
+
+func (m model) Correct() bool {
+	return (m.state == ACCEPT) && TestCases[m.CurrCase-1].pass || 
+		(m.state == REJECT) && !TestCases[m.CurrCase-1].pass
 }
 
 var style = lipgloss.NewStyle().
@@ -350,8 +380,7 @@ func toRune(i int) string {
 }
 
 type TestCase struct {
-	tape *list.List
-	head *list.Element
+	tape []int
 	pass bool
 }
 
