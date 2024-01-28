@@ -26,6 +26,10 @@ type model struct {
 	state		int
 	viewWidth	int //number of steps run
 	started		bool // you can't edit the table if you've started!
+
+	input []textinput.Model
+	editMode bool
+	focusIndex int
 }
 
 
@@ -38,12 +42,12 @@ func initialModel() model {
 	}
 
 	rows := []table.Row{
-		{"A", "aaa", "bbb", "ccc"},
-		{"B", "Tokyo", "Japan", "ddd"},
-		{"C", "Tokyo", "Japan", "eee"},
-		{"D", "Tokyo", "Japan", "fff"},
-		{"E", "Tokyo", "Japan", "37,274,000"},
-		{"F", "Tokyo", "Japan", "37,274,000"},
+		{"A", "", "", ""},
+		{"B", "", "", ""},
+		{"C", "", "", ""},
+		{"D", "", "", ""},
+		{"E", "", "", ""},
+		{"F", "", "", ""},
 	}
 
 	t := table.New(
@@ -69,6 +73,24 @@ func initialModel() model {
 
 	initTape := list.New()
 	initTape.PushBack(1)
+
+	inputs := make([]textinput.Model, 3)
+	
+	var ti textinput.Model
+	for i := range inputs {
+		ti = textinput.New()
+		ti.CharLimit = 1
+		switch i {
+		case 0:
+			ti.Placeholder = "New State (A-Z)"
+		case 1:
+			ti.Placeholder = "New Symbol (0-9)"
+		case 2:
+			ti.Placeholder = "Move (L/R)"
+		}
+		inputs[i] = ti
+	}	
+	
 	return model{
 		tape: initTape,
 		head: initTape.Front(),
@@ -77,6 +99,9 @@ func initialModel() model {
 		viewWidth:	10,
 		started:	false,
 		table: t,
+		input: inputs,
+		editMode: false,
+		focusIndex: 0,
 	}
 }
 func (m model) resetModel() model {
@@ -109,82 +134,152 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Edit() model {
-	var t textinput.Model
-	in := make([]textinput.Model, 5)
-	for i := range in {
-		t = textinput.New()
-		t.CharLimit = 1
-		switch i {
-		case 0:
-			t.Placeholder = "New State (A-Z)"
-		case 1:
-			t.Placeholder = "New Symbol (0-9)"
-		case 2:
-			t.Placeholder = "Move (L/R)"
-		}
-		in[i] = t
-	}
+	// var t textinput.Model
+	// in := make([]textinput.Model, 5)
+	// for i := range in {
+	// 	t = textinput.New()
+	// 	t.CharLimit = 1
+	// 	switch i {
+	// 	case 0:
+	// 		t.Placeholder = "New State (A-Z)"
+	// 	case 1:
+	// 		t.Placeholder = "New Symbol (0-9)"
+	// 	case 2:
+	// 		t.Placeholder = "Move (L/R)"
+	// 	}
+	// 	in[i] = t
+	// }
+	
 	//textinput example: https://github.com/charmbracelet/bubbletea/blob/master/examples/textinputs/main.go
 	//m.stateTable[m.table.GetCursorY()][m.table.GetCursorX()].
 	//	nextState = in[0].value[0]
 	//m.stateTable[m.table.GetCursorY()][m.table.GetCursorX()].write = in[1]
 	//m.stateTable[m.table.GetCursorY()][m.table.GetCursorX()].direction = (in[2] == 'R')
+	//return in
+
 	return m
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	renderTable(m.stateTable, &m.table)	
-	var cmd tea.Cmd
+	var cmd tea.Cmd	
+	renderTable(m.stateTable, &m.table)
+	m.table, cmd = m.table.Update(msg)
+	m.table.UpdateViewport()
+	
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "n", "s":
-			m = m.step()
-		case "r":
-			m = m.resetModel()
-		case "e":
-			m = m.Edit()
-		case "+":
-			if m.viewWidth < 20 {
-				m.viewWidth++
-			}
-		case "-":
-			if m.viewWidth > 2 {
-				m.viewWidth--
-			}
-		case "ctrl+c", "q":
-			return m, tea.Quit
-		case "enter":
-			return m, tea.Batch(
-				tea.Printf("Let's go to %s!", m.table.SelectedRow()[1]),
-			)
+		if !m.editMode {
+			switch msg.String() {
+			case "n", "s":
+				m = m.step()
+			case "r":
+				m = m.resetModel()
+			case "e":
+				m.editMode = !m.editMode
+				m = m.Edit()
+			case "+":
+				if m.viewWidth < 20 {
+					m.viewWidth++
+				}
+			case "-":
+				if m.viewWidth > 2 {
+					m.viewWidth--
+				}
+			case "ctrl+c", "q":
+				return m, tea.Quit
+			case "enter":
+				return m, tea.Batch(
+					tea.Printf("Let's go to %s!", m.table.SelectedRow()[1]),
+				)
 
+			}
+		} else {
+			switch msg.String() {
+			case "e":
+				m.editMode = !m.editMode
+			case "tab":
+				m.input[m.focusIndex].Blur()
+				m.focusIndex++
+				if m.focusIndex > 2 {
+					m.focusIndex = 0
+				}
+				m.input[m.focusIndex].Focus()				
+				
+			case "-":
+				if m.viewWidth > 2 {
+					m.viewWidth--
+				}
+			case "ctrl+c", "q":
+				return m, tea.Quit
+			case "enter":
+				a := m.getCurrentTransState()
+				if a != -1 {
+					m.stateTable[m.table.GetCursorY()][m.table.GetCursorX() -1] = transState {a, a, false}
+				} 
+			}
+			cmd = m.updateInputs(msg)
 		}
+		
 	}
-	m.table, cmd = m.table.Update(msg)
 	return m, cmd
 }
 
+func (m model) getCurrentTransState() int {
+	var ns int
+	nsc := int(m.input[0].Value()[0])
+	if (nsc > 97 && nsc < 122) {
+		ns = nsc - 97 
+	} else if (nsc > 65 && nsc < 90) {
+		ns = nsc - 65 
+        } else {
+		ns = int(nsc-int('A')+1)		
+	}
+	return ns
+}
+
+func (m *model) updateInputs(msg tea.Msg) tea.Cmd {
+	cmds := make([]tea.Cmd, len(m.input))
+
+	// Only text inputs with Focus() set will respond, so it's safe to simply
+	// update all of them here without any further logic.
+	for i := range m.input {
+		m.input[i], cmds[i] = m.input[i].Update(msg)
+	}
+
+	return tea.Batch(cmds...)
+}
+
 func (m model) View() string {
-	s := "The current tape state:\n\n..."
+	var s string
+	if !m.editMode {
+		s = "The current tape state:\n\n..."
 
-	viewHead := m.head;
+		viewHead := m.head;
 
-	for i:=0; i < m.viewWidth; i++ {
-		if viewHead.Prev() == nil {
-			m.tape.InsertBefore(0,viewHead)
+		for i:=0; i < m.viewWidth; i++ {
+			if viewHead.Prev() == nil {
+				m.tape.InsertBefore(0,viewHead)
+			}
+			viewHead = viewHead.Prev();
 		}
-		viewHead = viewHead.Prev();
-	}
-	for i:=0; i < 2*m.viewWidth+1; i++ {
-		s += fmt.Sprintf("%v ", viewHead.Value)
-		if viewHead.Next() == nil {
-			m.tape.InsertAfter(0,viewHead)
+		for i:=0; i < 2*m.viewWidth+1; i++ {
+			s += fmt.Sprintf("%v ", viewHead.Value)
+			if viewHead.Next() == nil {
+				m.tape.InsertAfter(0,viewHead)
+			}
+			viewHead = viewHead.Next();
 		}
-		viewHead = viewHead.Next();
+		s = s[:len(s) - 1]
+		s += "...\n"
+	} else {
+
+		for i := range m.input {
+			s += m.input[i].View()
+			if i < len(m.input)-1 {
+				s += "\n"
+			}
+		}
 	}
-	s = s[:len(s) - 1]
-	s += "...\n"
 
 	//s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
 	s += "^\n"
