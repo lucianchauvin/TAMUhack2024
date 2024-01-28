@@ -124,6 +124,7 @@ func (m model) Edit() model {
 		}
 		in[i] = t
 	}
+	//textinput example: https://github.com/charmbracelet/bubbletea/blob/master/examples/textinputs/main.go
 	//m.stateTable[m.table.GetCursorY()][m.table.GetCursorX()].
 	//	nextState = in[0].value[0]
 	//m.stateTable[m.table.GetCursorY()][m.table.GetCursorX()].write = in[1]
