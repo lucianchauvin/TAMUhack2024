@@ -1,15 +1,17 @@
 package main
 
-
 import(
 	"fmt"	
 	"os"
 	list "container/list"
 	tea "github.com/charmbracelet/bubbletea"
 	lipgloss "github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/cursor"
+	"github.com/charmbracelet/bubbles/textinput"
 )
 
-const HALT = 0
+const ACCEPT = 0
+const REJECT = -1
 
 type model struct {
 	tape		*list.List
@@ -17,8 +19,9 @@ type model struct {
     stateTable	[][]transState 
     state		int
 	viewWidth	int //number of steps run
-	
+	started		bool // you can't edit the table if you've started!
 }
+
 
 func initialModel() model {
 	initTape := list.New()
@@ -26,16 +29,24 @@ func initialModel() model {
 	return model{
 		tape: initTape,
 		head: initTape.Front(),
-		state: 1,
 		stateTable: [][]transState{{{1,1,true}, {1,0,false}},{{1,1,false},{0,0,true}}},
-		viewWidth: 10,
+		state:		1,
+		viewWidth:	10,
+		started:	false,
 	}
+}
+func (m model) resetModel() model {
+	r := initialModel()
+	r.stateTable = m.stateTable
+	r.viewWidth = m.viewWidth
+	return r
 }
 
 func (m model) step() model { 
-	if m.state == HALT {
+	if m.state <= 0 {
 		return m
 	}
+	m.started = true
     curValue := m.head.Value.(int)
     curState := m.state
 
@@ -54,12 +65,42 @@ func (m model) Init() tea.Cmd {
 	return tea.SetWindowTitle("T-soding")
 }
 
+func (m model) Edit() model {
+	var t textinput.Model
+	in := make([]textinput.Model, 5)
+	for i := range in {
+		t = textinput.New()
+		t.CharLimit = 1
+		switch i {
+		case 0:
+			t.Placeholder = "State (A-Z)"
+		case 1:
+			t.Placeholder = "Symbol (0-9)"
+		case 2:
+			t.Placeholder = "New State (A-Z)"
+		case 3:
+			t.Placeholder = "New Symbol (0-9)"
+		case 4:
+			t.Placeholder = "Move (L/R)"
+		}
+		in[i] = t
+	}
+	m.stateTable[in[0]][in[1]].nextState = in[2]
+	m.stateTable[in[0]][in[1]].write = in[3]
+	m.stateTable[in[0]][in[1]].direction = (in[4] == 'R')
+	return m
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "n", "s":
 			m = m.step()
+		case "r":
+			m = m.resetModel()
+		case "e":
+			m = m.Edit()
 		case "+":
 			if m.viewWidth < 20 {
 				m.viewWidth++
@@ -77,7 +118,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	s := "The current tape state:\n\n"
+	s := "The current tape state:\n\n..."
 
 	viewHead := m.head;
 
@@ -88,19 +129,20 @@ func (m model) View() string {
 		viewHead = viewHead.Prev();
 	}
 	for i:=0; i < 2*m.viewWidth+1; i++ {
-		s += fmt.Sprintf(" %v", viewHead.Value)
+		s += fmt.Sprintf("%v ", viewHead.Value)
 		if viewHead.Next() == nil {
 			m.tape.InsertAfter(0,viewHead)
 		}
 		viewHead = viewHead.Next();
 	}
-	s += " \n"
+	s = s[:len(s) - 1]
+	s += "...\n"
 
 		//s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
 	s += "^\n"
 	s += fmt.Sprintf("Current state: %v\n", toRune(m.state))
 
-	s += "\nPress s to step, +/- to see more/less of the tape, q to quit.\n"
+	s += "\nPress s to step, r to reset, +/- to see more/less of the tape, q to quit.\n"
 
 	return style.Render(s)
 }
@@ -115,8 +157,10 @@ var style = lipgloss.NewStyle().
 
 
 func toRune(i int) string {
-	if i == HALT {
-		return "HALT"
+	if i == ACCEPT {
+		return "ACCEPT"
+	} else if i == REJECT {
+		return "REJECT"
 	}
     return string(rune('A' + i))
 }
