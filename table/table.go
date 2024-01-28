@@ -362,8 +362,9 @@ func (m *Model) MoveLeft(n int) {
 	m.UpdateViewport()
 }
 
-
-
+func (m *Model) UpdateCurrent(x string) {
+	m.SelectedRow()[m.GetCursorX()] = x
+}
 
 // MoveDown moves the selection down by any number of rows.
 // It can not go below the last row.
