@@ -184,7 +184,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
         if m.startMode {
             switch msg.String(){
-            case "b":
+			case "ctrl+c":
+				return m, tea.Quit
+			default:
                 m.startMode = false
             }
             cmd = m.updateInputs(msg)
@@ -219,10 +221,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "ctrl+c", "q":
 				return m, tea.Quit
-		//	case "enter":
-		//		return m, tea.Batch(
-		//			tea.Printf("Let's go to %s!", m.table.SelectedRow()[1]),
-		//		)
 
 			}
 		} else {
@@ -307,15 +305,15 @@ func (m *model) updateInputs(msg tea.Msg) tea.Cmd {
 func (m model) View() string {
 	var s string
     if m.startMode{
-        s = "\n\nWelecome to T-soding, a terminal game all about\nTuring machines created by McKinley and Lucian\nClick b to begin!"
+        s = "\n\nwelcome to T-soding, a terminal game all about\nTuring machines created by McKinley and Lucian\npress any key to begin!\n\nthe goal of this game is for you to create a Turing machine\nthat solves the current problem. a Turing machine consists of states, symbols, and a tape.\nyou will edit the states and symbols to try to get to the accept state\nwith the correct output left on the tape!"
 		return style.
-			PaddingTop(5).
+			PaddingTop(4).
 			PaddingLeft(20).
 			Render(s)
 		}
-	s += "\n your task is to create a turing machine that accepts only \npalindromes consisting of 1s and 2s, terminated on both ends by 0s. \n\n"
+	s += "\n create a turing machine that accepts only \npalindromes consisting of 1s and 2s, terminated on both ends by 0s. \n\n\n"
     if !m.editMode {
-		s = "the current tape state:\n\n..."
+		s += "the current tape state:\n\n..."
 
 		viewHead := m.head;
 
