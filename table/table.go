@@ -39,6 +39,8 @@ type Column struct {
 // is used to render the menu.
 type KeyMap struct {
 	LineUp       key.Binding
+    ColRight     key.Binding
+    ColLeft      key.Binding
 	LineDown     key.Binding
 	PageUp       key.Binding
 	PageDown     key.Binding
@@ -55,6 +57,13 @@ func DefaultKeyMap() KeyMap {
 		LineUp: key.NewBinding(
 			key.WithKeys("up", "k"),
 			key.WithHelp("↑/k", "up"),
+		),
+		ColRight: key.NewBinding(
+			key.WithKeys("right", "l"),
+		),
+		ColLeft: key.NewBinding(
+			key.WithKeys("left", "h"),
+
 		),
 		LineDown: key.NewBinding(
 			key.WithKeys("down", "j"),
@@ -119,7 +128,7 @@ type Option func(*Model)
 func New(opts ...Option) Model {
 	m := Model{
 		cursory:   0,
-        cursorx:   0,
+        cursorx:   1,
 		viewport: viewport.New(0, 20),
 
 		KeyMap: DefaultKeyMap(),
@@ -195,6 +204,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.KeyMap.LineUp):
 			m.MoveUp(1)
+        case key.Matches(msg, m.KeyMap.ColRight):
+			m.MoveRight(1)
+        case key.Matches(msg, m.KeyMap.ColLeft):
+			m.MoveLeft(1)
 		case key.Matches(msg, m.KeyMap.LineDown):
 			m.MoveDown(1)
 		case key.Matches(msg, m.KeyMap.PageUp):
@@ -337,6 +350,18 @@ func (m *Model) MoveUp(n int) {
 	m.UpdateViewport()
 }
 
+func (m *Model) MoveRight(n int) {
+	m.cursorx = clamp(m.cursorx+n, 1, len(m.cols)-1)
+	m.UpdateViewport()
+}
+
+func (m *Model) MoveLeft(n int) {
+	m.cursorx = clamp(m.cursorx-n, 1, len(m.cols)-1)
+	m.UpdateViewport()
+}
+
+
+
 
 // MoveDown moves the selection down by any number of rows.
 // It can not go below the last row.
@@ -395,6 +420,9 @@ func (m *Model) renderRow(rowID int) string {
 	var s = make([]string, 0, len(m.cols))
 	for i, value := range m.rows[rowID] {
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
+        
+
+        m.styles.Cell.BorderStyle(lipgloss.NormalBorder()).BorderRight(i == 0)
 		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
         if i == m.cursorx && rowID == m.cursory {
             renderedCell = m.styles.Selected.Render(renderedCell)
