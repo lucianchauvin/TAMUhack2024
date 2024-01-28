@@ -94,13 +94,13 @@ func initialModel() model {
 		ti.CharLimit = 1
 		switch i {
 		case 0:
-			ti.Prompt = "New State   (A-Z): "
+			ti.Prompt = "New State  (A-Z): "
 			ti.Placeholder = "A"
 		case 1:
-			ti.Prompt = "New Symbol  (0-9): "
+			ti.Prompt = "New Symbol (0-9): "
 			ti.Placeholder = "0"
 		case 2:
-			ti.Prompt = "Direction   (R/L): "
+			ti.Prompt = "Direction  (R/L): "
 			ti.Placeholder = "L"
 		}
 		ti.PromptStyle.AlignHorizontal(lipgloss.Left)
@@ -117,7 +117,7 @@ func initialModel() model {
 		//rows are states, columns are symbols
 		stateTable: [][]transState{
 			{{A,0,true }, {4,0,false},{R,2,false}},
-			{{A,0,false}, {R,1,false},{5,0,false}},
+			{{R,0,false}, {R,1,false},{5,0,false}},
 			{{0,0,false}, {2,1,true },{2,2,true }},
 			{{1,0,false}, {3,1,true },{3,2,true }},
 			{{5,0,true }, {4,1,false},{4,2,false}},
@@ -140,6 +140,7 @@ func (m model) resetModel() model {
 	r.viewWidth = m.viewWidth
 	renderTable(r.stateTable, &r.table)
 	r.table.UpdateViewport()
+	r.startMode = false
 	return r
 }
 
@@ -257,6 +258,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.stateTable[m.table.GetCursorY()][m.table.GetCursorX() -1] = InTrans
 					m.editMode = false
 					m = m.ResetInputs()
+					renderTable(m.stateTable, &m.table)
+					m.table.UpdateViewport()
 				} else {
 					m.editFailed = true
 				}
