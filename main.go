@@ -28,9 +28,9 @@ type model struct {
 	state		int // A = 0
 	viewWidth	int //number of steps run
 	started		bool // you can't edit the table if you've started!
-
 	input []textinput.Model
 	editMode bool
+    startMode bool
 	editFailed bool
 	focusIndex int
 }
@@ -132,6 +132,7 @@ func initialModel() model {
 		table: t,
 		input: inputs,
 		editMode: false,
+        startMode: true,
 		focusIndex: 0,
 	}
 }
@@ -170,7 +171,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.table.UpdateViewport()
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if !m.editMode {
+        if m.startMode {
+            switch msg.String(){
+            case "b":
+                m.startMode = false
+            }
+            cmd = m.updateInputs(msg)
+            return m, cmd
+        } else if !m.editMode {
 			// we only want the table to take inputs when not in edit mode
 			m.table, cmd = m.table.Update(msg)
 			switch msg.String() {
@@ -283,7 +291,9 @@ func (m *model) updateInputs(msg tea.Msg) tea.Cmd {
 
 func (m model) View() string {
 	var s string
-	if !m.editMode {
+    if m.startMode{
+        s = "\n\nWelecome to T-soding, a terminal game all about\nTuring machines created by McKinley and Lucian\nClick b to begin!"
+    } else if !m.editMode {
 		s = "The current tape state:\n\n..."
 
 		viewHead := m.head;
@@ -316,16 +326,19 @@ func (m model) View() string {
 		}
 		s += "\n"
 	}
+    if !m.startMode{
+        s += "\n" + tableStyle.Render(m.table.View()) + "\n"
+        if m.editFailed { 
+            s += "\nthat's not a valid table entry!\n"
+        } else if m.editMode {
+            s += "\n↑/↓: change field • e: stop editing • ↵: save to table • q: quit.\nUse 'Y' as the yes/accept state and 'N' as the no/fail state."
+        } else if !m.started {
+            s += "\ns: step • e: edit  • +/-: view more/less tape • q: quit.\n"
+        } else {
+            s += "\ns: step • r: reset • +/-: view more/less tape • q: quit.\n"
+        }
 
-	s += "\n" + tableStyle.Render(m.table.View()) + "\n"
-	if m.editFailed { s += "\nthat's not a valid table entry!\n"
-	} else if m.editMode {
-		s += "\n↑/↓: change field • e: stop editing • ↵: save to table • q: quit.\nUse 'Y' as the yes/accept state and 'N' as the no/fail state."
-	} else if !m.started {
-		s += "\ns: step • e: edit  • +/-: view more/less tape • q: quit.\n"
-	} else {
-	s += "\ns: step • r: reset • +/-: view more/less tape • q: quit.\n"
-	}
+    }
 
 	return style.
 		PaddingTop(5).
