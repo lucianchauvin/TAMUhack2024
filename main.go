@@ -308,8 +308,14 @@ func (m model) View() string {
 	var s string
     if m.startMode{
         s = "\n\nWelecome to T-soding, a terminal game all about\nTuring machines created by McKinley and Lucian\nClick b to begin!"
-    } else if !m.editMode {
-		s = "The current tape state:\n\n..."
+		return style.
+			PaddingTop(5).
+			PaddingLeft(20).
+			Render(s)
+		}
+	s += "\n your task is to create a turing machine that accepts only \npalindromes consisting of 1s and 2s, terminated on both ends by 0s. \n\n"
+    if !m.editMode {
+		s = "the current tape state:\n\n..."
 
 		viewHead := m.head;
 
@@ -330,7 +336,7 @@ func (m model) View() string {
 		s += "...\n"
 		//s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
 		s += "^\n"
-		s += fmt.Sprintf("Current state: %v\n", toRune(m.state))
+		s += fmt.Sprintf("current state: %v\n", toRune(m.state))
 	} else {
 
 		for i := range m.input {
@@ -342,16 +348,6 @@ func (m model) View() string {
 		s += "\n"
 	}
     if !m.startMode{
-        s += "\n" + tableStyle.Render(m.table.View()) + "\n"
-        if m.editFailed { 
-            s += "\nthat's not a valid table entry!\n"
-        } else if m.editMode {
-            s += "\n↑/↓: change field • e: stop editing • ↵: save to table • q: quit.\nUse 'Y' as the yes/accept state and 'N' as the no/fail state."
-        } else if !m.started {
-            s += "\ns: step • e: edit  • +/-: view more/less tape • q: quit.\n"
-        } else {
-            s += "\ns: step • r: reset • +/-: view more/less tape • q: quit.\n"
-        }
 		s += "\n" + tableStyle.Render(m.table.View()) + "\n"
 		if m.editFailed { s += "\nthat's not a valid table entry!\n"
 		} else if m.editMode {
